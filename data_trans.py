@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 client = OpenAI(
     api_key="sk-mhcyuxjzvfeajsdkjsubiyrsoxyxaibzlaujpdumwjtvxieq",
-    base_url="xxx"
+    base_url="https://api.siliconflow.cn/v1"
 )
 
 

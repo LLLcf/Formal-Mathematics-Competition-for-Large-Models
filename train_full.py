@@ -68,32 +68,32 @@ def parse_args():
     
     # 数据参数
     parser.add_argument("--data_dir", type=str, default="./inputs/data", help="数据集目录")
-    parser.add_argument("--test_size", type=float, default=0.1, help="测试集比例")
-    parser.add_argument("--max_length", type=int, default=2048, help="最大序列长度")
+    parser.add_argument("--test_size", type=float, default=0.01, help="测试集比例")
+    parser.add_argument("--max_length", type=int, default=4096, help="最大序列长度")
     
     # 模型参数
     parser.add_argument("--model_path", type=str, default="/root/lanyun-tmp/models/Qwen3-8B", help="预训练模型路径")
     parser.add_argument("--r", type=int, default=32, help="LoRA秩")
     parser.add_argument("--lora_alpha", type=int, default=64, help="LoRA alpha参数")
-    parser.add_argument("--lora_dropout", type=float, default=0.1, help="LoRA dropout率")
+    parser.add_argument("--lora_dropout", type=float, default=0.0, help="LoRA dropout率")
     
     # 训练参数
-    parser.add_argument("--num_train_epochs", type=int, default=3, help="训练轮数")
+    parser.add_argument("--num_train_epochs", type=int, default=10, help="训练轮数")
     parser.add_argument("--train_batch_size", type=int, default=2, help="训练批次大小")
     parser.add_argument("--eval_batch_size", type=int, default=1, help="评估批次大小")
-    parser.add_argument("--learning_rate", type=float, default=7e-6, help="学习率")
+    parser.add_argument("--learning_rate", type=float, default=7e-5, help="学习率")
     parser.add_argument("--gradient_accumulation_steps", type=int, default=4, help="梯度累积步数")
-    parser.add_argument("--warmup_ratio", type=float, default=0.005, help="warmup比例")
+    parser.add_argument("--warmup_ratio", type=float, default=0.01, help="warmup比例")
     parser.add_argument("--weight_decay", type=float, default=0.01, help="权重衰减")
     parser.add_argument("--lr_scheduler_type", type=str, default="cosine", help="学习率调度器类型")
     
     # 输出参数
-    parser.add_argument("--output_dir", type=str, default="./results-full_aug", help="模型保存目录")
-    parser.add_argument("--evaluate_dir", type=str, default="./evaluate-full_aug", help="评估结果保存目录")
+    parser.add_argument("--output_dir", type=str, default="./results-test-lcf", help="模型保存目录")
+    parser.add_argument("--evaluate_dir", type=str, default="./evaluate-test-lcf", help="评估结果保存目录")
     parser.add_argument("--seed", type=int, default=2025, help="随机种子")
     
     # Wandb参数
-    parser.add_argument("--wandb_project", type=str, default="Litex-full_aug-Train", help="Wandb项目名")
+    parser.add_argument("--wandb_project", type=str, default="Litex-test", help="Wandb项目名")
     parser.add_argument("--wandb_run_name", type=str, default=None, help="Wandb运行名，默认自动生成")
     
     return parser.parse_args()
@@ -112,8 +112,6 @@ if __name__ == '__main__':
     print("加载数据集...")
     gsm8k_train = get_datasets(os.path.join(args.data_dir, "train.jsonl"), types='gsm_train')
     gsm8k_test = get_datasets(os.path.join(args.data_dir, "test.jsonl"), types='gsm_test')
-    merged_all_days_validated = get_datasets(os.path.join(args.data_dir, "merged_all_days_validated.jsonl"), types='gsm_new')
-    
     head = get_datasets(os.path.join(args.data_dir, "merged_head8k_filter.jsonl"), types='head')
     mid = get_datasets(os.path.join(args.data_dir, "merged_mid8k_filter.jsonl"), types='mid')
     tail = get_datasets(os.path.join(args.data_dir, "merged_tail8k_filter.jsonl"), types='tail')
@@ -123,8 +121,6 @@ if __name__ == '__main__':
     print(gsm8k_train[0])
     gsm8k_train = apply_filter_and_log(gsm8k_train, "gsm8k_train")
     gsm8k_test = apply_filter_and_log(gsm8k_test, "gsm8k_test")
-    merged_all_days_validated = apply_filter_and_log(merged_all_days_validated, "gsm_new")
-    
     head = apply_filter_and_log(head, "head")
     mid = apply_filter_and_log(mid, "mid")
     tail = apply_filter_and_log(tail, "tail")
@@ -139,9 +135,6 @@ if __name__ == '__main__':
     gsm8k_test_dataset = gsm8k_test.map(function=make_map_fn_for_full("gsm_test"), with_indices=True)
     gsm8k_test_dataset = gsm8k_test_dataset.filter(lambda example: example is not None and example["messages"] is not None)    
 
-    merged_all_days_validated_dataset = merged_all_days_validated.map(function=make_map_fn_for_full("gsm_new"), with_indices=True)
-    merged_all_days_validated_dataset = merged_all_days_validated_dataset.filter(lambda example: example is not None and example["messages"] is not None)    
-    
     head_dataset = head.map(function=make_map_fn_for_full("head"), with_indices=True)
     head_dataset = head_dataset.filter(lambda example: example is not None and example["messages"] is not None)    
 
@@ -160,7 +153,6 @@ if __name__ == '__main__':
     datasets_list = [
         ("gsm8k_train_dataset", gsm8k_train_dataset),
         ("gsm8k_test_dataset", gsm8k_test_dataset),
-        ("merged_all_days_validated_dataset", merged_all_days_validated_dataset),
         ("head_dataset", head_dataset),
         ("mid_dataset", mid_dataset),
         ("tail_dataset", tail_dataset),
@@ -181,18 +173,15 @@ if __name__ == '__main__':
 
     gsm8k_train_dataset = processed_datasets["gsm8k_train_dataset"]
     gsm8k_test_dataset = processed_datasets["gsm8k_test_dataset"]
-    merged_all_days_validated_dataset = processed_datasets["merged_all_days_validated_dataset"]
-        
     head_dataset = processed_datasets["head_dataset"]
     mid_dataset = processed_datasets["mid_dataset"]
     tail_dataset = processed_datasets["tail_dataset"]
     mathqa_dataset = processed_datasets["mathqa_dataset"]
     prove_dataset = processed_datasets["prove_dataset"]
-    print(mathqa_dataset[0])
 
     print("准备训练集和测试集...")
     train_ds, test_ds = get_train_test_dataset(
-        ori_data=[gsm8k_train_dataset, gsm8k_test_dataset, merged_all_days_validated_dataset, head_dataset, mid_dataset, tail_dataset, mathqa_dataset],
+        ori_data=[gsm8k_train_dataset,gsm8k_test_dataset, mid_dataset, head_dataset ,tail_dataset, mathqa_dataset],
         proves_data=prove_dataset,
         tokenizer=tokenizer,
         test_size=args.test_size,
@@ -225,7 +214,7 @@ if __name__ == '__main__':
         weight_decay=args.weight_decay,
         output_dir=args.output_dir,
         lr_scheduler_type=args.lr_scheduler_type,
-        callbacks=[eval_callback]
+        callbacks=None
     )
 
     wandb.finish()
