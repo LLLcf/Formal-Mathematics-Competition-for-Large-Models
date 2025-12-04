@@ -75,10 +75,10 @@ def parse_args():
     parser.add_argument("--model_path", type=str, default="/root/lanyun-tmp/models/Qwen3-8B", help="预训练模型路径")
     parser.add_argument("--r", type=int, default=32, help="LoRA秩")
     parser.add_argument("--lora_alpha", type=int, default=64, help="LoRA alpha参数")
-    parser.add_argument("--lora_dropout", type=float, default=0.0, help="LoRA dropout率")
+    parser.add_argument("--lora_dropout", type=float, default=0.1, help="LoRA dropout率")
     
     # 训练参数
-    parser.add_argument("--num_train_epochs", type=int, default=10, help="训练轮数")
+    parser.add_argument("--num_train_epochs", type=int, default=5, help="训练轮数")
     parser.add_argument("--train_batch_size", type=int, default=2, help="训练批次大小")
     parser.add_argument("--eval_batch_size", type=int, default=1, help="评估批次大小")
     parser.add_argument("--learning_rate", type=float, default=7e-5, help="学习率")
